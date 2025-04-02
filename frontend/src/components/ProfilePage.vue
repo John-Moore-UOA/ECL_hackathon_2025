@@ -1,36 +1,38 @@
-<!-- src/pages/ProfilePage.vue -->
 <template>
-  <div class="flex flex-col min-h-screen">
-    <main class="flex-grow">
-      <div class="container mx-auto py-8">
-        <h1 class="text-3xl font-bold text-center">Manage Profile</h1>
-        
-        <div v-if="loading" class="text-center mt-8">
-          <p>Loading your profile...</p>
-        </div>
-        <div v-else-if="error" class="text-center mt-8 text-red-500">
-          <p>{{ error }}</p>
-        </div>
-        <div v-else>
-          <div v-if="isNewUser" class="bg-blue-50 border border-blue-200 rounded-md p-4 my-6 mx-auto max-w-2xl">
-            <p class="text-center">
-              Welcome! It looks like this is your first time here.
-              We've suggested some interests to get you started, but feel free to modify them.
-            </p>
+  <div class="profile">
+    <div class="flex flex-col min-h-screen bg-gray-100">
+      <main class="flex-grow">
+        <div class="container mx-auto pt-12 px-4">
+          <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">Manage Profile</h1>
+          
+          <div v-if="loading" class="text-center mt-8">
+            <p class="text-lg text-gray-600">Loading your profile...</p>
           </div>
-          
-          <p class="text-center text-gray-600 mt-4">Here are your interests</p>
-          
-          <ProfileBox 
+          <div v-else-if="error" class="text-center mt-8 text-red-600">
+            <p class="text-lg">{{ error }}</p>
+          </div>
+          <div v-else>
+            <div v-if="isNewUser" class="bg-blue-50 border border-blue-200 rounded-lg p-6 my-8 mx-auto max-w-2xl shadow-lg">
+              <p class="text-center text-lg text-gray-800">
+                Welcome! It looks like this is your first time here.
+                We've suggested some interests to get you started, but feel free to modify them.
+              </p>
+            </div>
+            
+            <p class="text-center text-gray-600 text-lg mt-6">Here are your interests</p>
+            
+            <ProfileBox 
             :interests="userInterests" 
             :isNewUser="isNewUser"
             @updateInterests="updateUserInterests" 
-          />
+            />
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
+
 
 <script setup>
 import { defineProps, ref, watch, onMounted } from 'vue';
@@ -109,3 +111,10 @@ onMounted(() => {
   fetchUserInterests(props.userId);
 });
 </script>
+
+<style>
+.profile {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+</style>

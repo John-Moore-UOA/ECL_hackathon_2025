@@ -14,21 +14,18 @@
     </div>
   
       <!-- Input for Adding New Interests -->
-      <div class="mt-6 flex space-x-4">
+      <div class="input-section">
         <input 
           v-model="newInterest" 
           type="text" 
-          class="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="new-text-box"
           placeholder="Add new interest..."
+          @keyup.enter="addInterest"
         />
         <button 
         @click="addInterest" 
-        class="px-4 py-2 text-white rounded transition"
-        style="background-color: #3b82f6;" 
-        @mouseover="hover = true"
-        @mouseleave="hover = false"
-        :style="{ backgroundColor: hover ? '#2563eb' : '#3b82f6' }"
-        >
+        class="new-button"
+        style="background-color: #3b82f6;">
             Add
         </button>
       </div>
@@ -99,4 +96,41 @@
     width: 100%;
     max-width: 1024px; /* Prevents excessive stretching */
   }
-  </style>
+  
+  .new-button {
+    padding-left: 20px;
+padding: 9px 22px;
+  border-radius: 6px;
+  display: inline-block !important;
+  text-align: center;
+  transition: all 200ms;
+  color: #000;
+  margin-top: 1em;
+  font-weight: bold;
+}
+
+.new-button:hover {
+  background-color: #3444ec;
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px, #3444ec 0px 0px 0px 2px;
+  border-radius: 8px;
+  font-weight: bold;
+  color: #000000;
+  transform: scale(1.05);
+}
+
+.new-text-box {
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.input-section {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+</style>
