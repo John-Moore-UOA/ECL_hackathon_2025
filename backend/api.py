@@ -241,6 +241,10 @@ class Neo4jConnection:
             
             # --- Datetime calculation using the new method ---
             current_dt = datetime.datetime.now(datetime.UTC)
+
+
+            # UNCOMMENT FOR DEBUG / REMOVE ONE HOUR TIME COOLDOWN
+            #one_hour_ago_dt = current_dt
             one_hour_ago_dt = current_dt - datetime.timedelta(hours=1)
             
             # Format for Neo4j (ISO 8601 format usually works well)
@@ -249,6 +253,11 @@ class Neo4jConnection:
             
             # Update the timestamp in the final results
             final_results["timestamp"] = current_time_iso
+
+
+
+
+
 
             # --- Find users ---
             similar_interest_ids = [item["id"] for item in similar_interests_results]
