@@ -21,9 +21,11 @@
 ![image](https://github.com/user-attachments/assets/66bab61b-a2c1-4ae9-b4ef-f617615b84d2)
 
 # output
-```Schduler started. Running every 5 minutes...
+```
+Schduler started. Running every 5 minutes...
 Fetching users with similar interest to user: 5
-Users that have similar interests: ['1']````
+Users that have similar interests: ['1']
+```
 
 
 
