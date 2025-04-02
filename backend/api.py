@@ -7,6 +7,7 @@ import numpy as np
 import gensim
 from gensim.models import KeyedVectors
 import gensim.downloader as gensim_downloader
+import datetime
 
 # Load environment variables
 load_dotenv()
@@ -87,44 +88,64 @@ class Neo4jConnection:
     
     def update_user_interests(self, user_id, interests):
         print(f'update_user_interests: {user_id} - interestings: {interests}')
-
         # Create user if not exists
         if not self.user_exists(user_id):
             self.create_user(user_id)
-            
+        
+        # First transaction: Clear existing interests
         with self.driver.session() as session:
-            # Clear existing interests
-            session.run("""
-                MATCH (u:User {id: $user_id})-[r:INTERESTED_IN]->()
-                DELETE r
-            """, user_id=user_id)
-            
-            # Add new interests with vectors
-            for interest in interests:
-                # Generate vector for interest
-                vector = text_to_vector(interest['name'])
-
-                print(f'vector result: {vector}')
-
-                vector_list = vector.tolist() if isinstance(vector, np.ndarray) else vector
-
-                print(f'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nsending to database {vector_list}\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')                
-                # Check if interest exists, create if not with vector
+            try:
                 session.run("""
-                    MERGE (i:Interest {id: $id})
-                    ON CREATE SET i.name = $name, i.description = $description, 
-                                 i.vector = $vector
-                    ON MATCH SET i.name = $name, i.description = $description, 
-                              i.vector = $vector
-                    WITH i
-                    MATCH (u:User {id: $user_id})
-                    MERGE (u)-[:INTERESTED_IN]->(i)
-                """, id=interest['id'], name=interest['name'], 
-                     description=interest['description'], vector=vector_list, 
-                     user_id=user_id)
+                    MATCH (u:User {id: $user_id})-[r:INTERESTED_IN]->()
+                    DELETE r
+                """, user_id=user_id)
+            except Exception as e:
+                print(f"Error clearing existing interests: {e}")
+        
+        # Second transaction: Add new interests without duplication
+        with self.driver.session() as session:
+            try:
+                for interest in interests:
+                    # Generate vector for interest
+                    vector = text_to_vector(interest['name'])
+                    print(f'vector result: {vector}')
+                    vector_list = vector.tolist() if isinstance(vector, np.ndarray) else vector
+                    
+                    # Verify user exists before creating relationships
+                    verify_user = session.run("""
+                        MATCH (u:User {id: $user_id})
+                        RETURN count(u) as count
+                    """, user_id=user_id).single()
+                    
+                    if verify_user["count"] == 0:
+                        print(f"User {user_id} not found, recreating")
+                        self.create_user(user_id)
+                    
+                    # Use MERGE for both nodes and relationships to prevent duplication
+                    result = session.run("""
+                        MERGE (i:Interest {id: $id})
+                        ON CREATE SET i.name = $name, i.description = $description,
+                                    i.vector = $vector
+                        ON MATCH SET i.name = $name, i.description = $description,
+                                i.vector = $vector
+                        WITH i
+                        MATCH (u:User {id: $user_id})
+                        MERGE (u)-[:INTERESTED_IN]->(i)
+                        RETURN count(u) as user_count
+                    """, id=interest['id'], name=interest['name'],
+                        description=interest['description'], vector=vector_list,
+                        user_id=user_id)
+                    
+                    record = result.single()
+                    if record and record["user_count"] == 0:
+                        print(f"Warning: Failed to find user: {user_id}")
                 
-            print('successfully sent to databse')
-            return True
+                print('successfully sent to database')
+                return True
+                
+            except Exception as e:
+                print(f"Error adding interests: {e}")
+                return False
     
     @staticmethod
     def cosine_similarity(a, b):
@@ -190,13 +211,18 @@ class Neo4jConnection:
                     "similarity": sim
                 })
             
-        # Get users with similar interests, with weighted bias towards more similar interests
+        # Get current dateTime
+        current_time = datetime.datetime.utcnow().isoformat() + 'Z'
+        # Calculate timestamp 1 hour ago
+        one_hour_ago = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).isoformat() + 'Z'
+        
+        # Get users with similar interests who haven't been updated in the last hour
         similar_interest_ids = [item["id"] for item in results]
         
-        # Pull a random sample of users who have any of these interests
         users_query = """
         MATCH (u:User)-[r:INTERESTED_IN]->(i:Interest)
         WHERE i.id IN $interest_ids
+        AND (NOT exists(u.lastUpdated) OR u.lastUpdated < $one_hour_ago)
         WITH u, i, r
         ORDER BY u.id, i.id
         RETURN u.id AS user_id, u.name AS user_name, 
@@ -204,12 +230,15 @@ class Neo4jConnection:
         LIMIT 100
         """
         
-        users_result = session.run(users_query, interest_ids=similar_interest_ids)
+        users_result = session.run(users_query, 
+                                  interest_ids=similar_interest_ids,
+                                  one_hour_ago=one_hour_ago)
         users = list(users_result)
         
         # Calculate user scores based on weighted interests
         user_scores = []
         interest_weights = {item["id"]: item["similarity"] for item in results}
+        selected_user_ids = []
         
         for user in users:
             score = 0
@@ -224,15 +253,33 @@ class Neo4jConnection:
                 "interests": user["interests"],
                 "score": score
             })
+            selected_user_ids.append(user["user_id"])
         
         # Sort users by score and return top results
         sorted_users = sorted(user_scores, key=lambda x: x["score"], reverse=True)
         top_users = sorted_users[:limit]
+        top_user_ids = [user["user_id"] for user in top_users]
+        
+        # Update lastUpdated timestamp for selected users
+        if top_user_ids:
+            update_query = """
+            MATCH (u:User)
+            WHERE u.id IN $user_ids
+            SET u.lastUpdated = $current_time
+            RETURN count(u) as updated_count
+            """
+            
+            update_result = session.run(update_query, 
+                                      user_ids=top_user_ids,
+                                      current_time=current_time)
+            update_count = update_result.single()["updated_count"]
+            print(f"Updated lastUpdated timestamp for {update_count} users")
         
         # Add users to results
         final_results = {
             "similar_interests": results,
-            "recommended_users": top_users
+            "recommended_users": top_users,
+            "timestamp": current_time
         }
         
         return final_results
