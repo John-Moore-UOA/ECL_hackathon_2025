@@ -1,29 +1,57 @@
-<script setup>
-import ContactForm from './ContactForm.vue';
-
-defineProps({
-  title: String,
-  description: String
-});
-</script>
-
 <template>
-  <section class="hero-pattern py-20 px-6">
-    <div class="container mx-auto flex flex-col md:flex-row items-center">
-      <div class="md:w-1/2 mb-10 md:mb-0">
-        <h1 class="text-4xl md:text-5xl font-bold text-gray-800 leading-tight mb-4">
-          {{ title }}
-        </h1>
-        <p class="text-lg text-gray-600 mb-8 max-w-md">
-          {{ description }}
-        </p>
-        <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 transform hover:scale-105">
-          Learn More
-        </button>
-      </div>
-      <div class="md:w-1/2 md:pl-10">
-        <ContactForm />
-      </div>
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">{{ title }}</h1>
+      <p class="hero-description">{{ description }}</p>
+    </div>
+    <div class="hero-images">
+      <img src="../assets/temp.jpg" alt="hero image" class="hero-image" />
     </div>
   </section>
 </template>
+
+<script>
+export default {
+  data() {
+    return {
+      title: "Welcome to LatteLink",
+      description: "Our Coffee Bump feature helps connect you with people from different groups, encouraging casual coffee meetups that spark meaningful interactions and new connections."
+    };
+  }
+};
+</script>
+
+<style scoped>
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem;
+  background-color: #f0f0f0;
+}
+
+.hero-content {
+  flex: 1;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.hero-description {
+  font-size: 1.25rem;
+  color: #666;
+}
+
+.hero-image {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  height: 300px;
+  width: 600px;
+  object-fit: fill;
+  padding-left: 80px;
+  border-radius: 8px;
+}
+</style>
