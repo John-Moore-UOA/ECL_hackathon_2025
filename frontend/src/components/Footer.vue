@@ -8,6 +8,8 @@ defineProps({
 const currentYear = new Date().getFullYear();
 </script>
 
+
+
 <template>
     <footer class="absolute bg-gray-800 text-white py-12 px-6">
       <div class="container mx-auto">

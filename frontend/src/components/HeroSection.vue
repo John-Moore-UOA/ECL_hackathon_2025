@@ -33,7 +33,8 @@ export default {
 .hero-content {
   flex: 1;
   background-color: white;
-  border-radius: 10%;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   padding: 50px;
 }
 
@@ -52,7 +53,7 @@ export default {
   gap: 1rem;
   flex: 1;
   height: 300px;
-  width: 600px;
+  width: 500px;
   object-fit: fill;
   padding-left: 80px;
   border-radius: 8px;
