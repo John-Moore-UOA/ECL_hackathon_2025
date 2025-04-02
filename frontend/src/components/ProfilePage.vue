@@ -64,7 +64,7 @@ const fetchUserInterests = async () => {
   loading.value = true;
   error.value = null;
 
-  console.log("1: ", USER_ID.value)
+  console.log("fetchUserInterests: ", USER_ID.value)
 
   try {
     const response = await axios.get(`${API_URL}/profile/interests/${USER_ID.value}`);
@@ -103,11 +103,12 @@ const updateUserInterests = async (newInterests) => {
   }
 };
 
-watch(() => props.userId, (newUserId) => {
-  console.log('User ID changed to:', newUserId);
-  USER_ID.value = newUserId;
-  fetchUserInterests(newUserId);
-}, { immediate: true });
+// LEADS TO DUPLICATE FETCH UPDATE CALLS
+// watch(() => props.userId, (newUserId) => {
+//   console.log('User ID changed to:', newUserId);
+//   fetchUserInterests(newUserId);
+//   USER_ID.value = newUserId;
+// }, { immediate: true });
 
 onMounted(() => {
   fetchUserInterests(props.userId);

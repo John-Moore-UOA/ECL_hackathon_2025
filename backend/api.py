@@ -61,11 +61,10 @@ class Neo4jConnection:
         
         with self.driver.session() as session:
             session.run("""
-                CREATE (u:User {id: $user_id, name: $name, email: $email, 
+                CREATE (u:User {id: $user_id, name: $name, lastUpdated: datetime(),
                                createdAt: datetime()})
             """, user_id=user_id, 
-                 name=user_data.get("name", f"User {user_id}"),
-                 email=user_data.get("email", ""))
+                 name=user_data.get("name", f"User {user_id}"))
             return True
             
     def get_user_interests(self, user_id):
@@ -109,7 +108,7 @@ class Neo4jConnection:
 
                 vector_list = vector.tolist() if isinstance(vector, np.ndarray) else vector
 
-                print('sending to database')                
+                print(f'\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nsending to database {vector_list}\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')                
                 # Check if interest exists, create if not with vector
                 session.run("""
                     MERGE (i:Interest {id: $id})
@@ -127,40 +126,77 @@ class Neo4jConnection:
             print('successfully sent to databse')
             return True
     
+    @staticmethod
+    def cosine_similarity(a, b):
+        a, b = np.array(a), np.array(b)
+        norm_a = np.linalg.norm(a)
+        norm_b = np.linalg.norm(b)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return np.dot(a, b) / (norm_a * norm_b)
+
     def find_similar_interests(self, interest_id, limit=10):
         print(f'find_similar_interests: {interest_id} - limit: {limit}')
 
-        """Find interests similar to the given interest based on vector similarity"""
         with self.driver.session() as session:
-            # First get the vector of the source interest
-            result = session.run("""
+            # Get the source interest vector
+            source_query = """
                 MATCH (i:Interest)
                 WHERE i.id = $interest_id OR i.id = toString($interest_id) OR i.id = toInteger($interest_id)
-                RETURN i.id AS id, i.name AS name, labels(i) AS labels
-            """, interest_id=interest_id)
-            
-            records = list(result)
-            print(f"Found {len(records)} nodes with id {interest_id} (or string/int conversion)")
-            for record in records:
-                print(f"- Node: {record}")
-            
-            # Then find similar interests using cosine similarity calculation in Neo4j
-            result = session.run("""
-                MATCH (source:Interest {id: $interest_id})
-                MATCH (other:Interest)
-                WHERE source <> other AND other.vector IS NOT NULL
-                WITH source, other, 
-                     gds.similarity.cosine(source.vector, other.vector) AS similarity
-                WHERE similarity > 0.5  // Minimum similarity threshold
-                RETURN other.id AS id, other.name AS name, 
-                       other.description AS description, similarity
-                ORDER BY similarity DESC
-                LIMIT $limit
-            """, interest_id=interest_id, limit=limit)
+                RETURN i.id AS id, i.name AS name, i.vector AS vector
+            """
+            source_result = session.run(source_query, interest_id=interest_id)
+            source_record = source_result.single()
+            if not source_record:
+                print("No source interest found")
+                return []
+            source_vector = source_record["vector"]
+            print(f"Source interest: {source_record}")
 
-            print(f'success: {result}')
+            # Pull a random sample of 100 interests with vectors, excluding the source interest
+            sample_query = """
+                MATCH (other:Interest)
+                WHERE other.vector IS NOT NULL AND other.id <> $interest_id
+                RETURN other.id AS id, other.name AS name, other.description AS description, other.vector AS vector
+                ORDER BY rand()
+                LIMIT 100
+            """
+            sample_result = session.run(sample_query, interest_id=interest_id)
+            candidates = list(sample_result)
+            print(f"Found {len(candidates)} candidate interests")
+
+            # Compute cosine similarity using numpy
+            similarity_threshold = 0.5  # Optional: only keep candidates with similarity above this threshold
+            similarities = []
+            for candidate in candidates:
+                candidate_vector = candidate["vector"]
+                sim = self.cosine_similarity(source_vector, candidate_vector)
+                similarities.append((candidate, sim))
             
-            return [dict(record) for record in result]
+            # Filter and sort candidates based on similarity
+            filtered_candidates = [
+                (cand, sim) for (cand, sim) in similarities if sim > similarity_threshold
+            ]
+            sorted_candidates = sorted(filtered_candidates, key=lambda x: x[1], reverse=True)
+            top_candidates = sorted_candidates[:limit]
+
+            # Prepare the final result list
+            results = []
+            for candidate, sim in top_candidates:
+                results.append({
+                    "id": candidate["id"],
+                    "name": candidate["name"],
+                    "description": candidate.get("description", ""),
+                    "similarity": sim
+                })
+            return results
+        
+        def find_similar_persons(self, interest_id, limit=10):
+            print(f'find_similar_persons: {interest_id} - limit: {limit}')
+
+            similar_interests = find_similar_interests(interest_id, limit)
+
+            # get random persons that have one of these similar_interests
 
 def text_to_vector(text):
     print('text_to_vector')
@@ -259,6 +295,17 @@ def find_similar_interests(interest_id):
         limit = request.args.get('limit', default=10, type=int)
         similar_interests = neo4j_conn.find_similar_interests(interest_id, limit)
         return jsonify(similar_interests)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/interests/similar_persons/<interest_id>', methods=['GET'])
+def find_similar_persons(interest_id):
+    print(f'Finding persons with interest_id: {interest_id}')
+    try:
+        limit = request.args.get('limit', default=10, type=int)
+        similar_persons = neo4j_conn.find_similar_persons(interest_id, limit)
+
+        return jsonify(similar_persons)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
