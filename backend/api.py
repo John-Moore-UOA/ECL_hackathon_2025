@@ -189,15 +189,54 @@ class Neo4jConnection:
                     "description": candidate.get("description", ""),
                     "similarity": sim
                 })
-            return results
+            
+        # Get users with similar interests, with weighted bias towards more similar interests
+        similar_interest_ids = [item["id"] for item in results]
         
-        def find_similar_persons(self, interest_id, limit=10):
-            print(f'find_similar_persons: {interest_id} - limit: {limit}')
-
-            similar_interests = find_similar_interests(interest_id, limit)
-
-            # get random persons that have one of these similar_interests
-
+        # Pull a random sample of users who have any of these interests
+        users_query = """
+        MATCH (u:User)-[r:INTERESTED_IN]->(i:Interest)
+        WHERE i.id IN $interest_ids
+        WITH u, i, r
+        ORDER BY u.id, i.id
+        RETURN u.id AS user_id, u.name AS user_name, 
+               collect(distinct {interest_id: i.id, interest_name: i.name}) AS interests
+        LIMIT 100
+        """
+        
+        users_result = session.run(users_query, interest_ids=similar_interest_ids)
+        users = list(users_result)
+        
+        # Calculate user scores based on weighted interests
+        user_scores = []
+        interest_weights = {item["id"]: item["similarity"] for item in results}
+        
+        for user in users:
+            score = 0
+            for interest in user["interests"]:
+                interest_id = interest["interest_id"]
+                if interest_id in interest_weights:
+                    score += interest_weights[interest_id]
+            
+            user_scores.append({
+                "user_id": user["user_id"],
+                "user_name": user["user_name"],
+                "interests": user["interests"],
+                "score": score
+            })
+        
+        # Sort users by score and return top results
+        sorted_users = sorted(user_scores, key=lambda x: x["score"], reverse=True)
+        top_users = sorted_users[:limit]
+        
+        # Add users to results
+        final_results = {
+            "similar_interests": results,
+            "recommended_users": top_users
+        }
+        
+        return final_results
+        
 def text_to_vector(text):
     print('text_to_vector')
 
@@ -295,17 +334,6 @@ def find_similar_interests(interest_id):
         limit = request.args.get('limit', default=10, type=int)
         similar_interests = neo4j_conn.find_similar_interests(interest_id, limit)
         return jsonify(similar_interests)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-@app.route('/api/interests/similar_persons/<interest_id>', methods=['GET'])
-def find_similar_persons(interest_id):
-    print(f'Finding persons with interest_id: {interest_id}')
-    try:
-        limit = request.args.get('limit', default=10, type=int)
-        similar_persons = neo4j_conn.find_similar_persons(interest_id, limit)
-
-        return jsonify(similar_persons)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
