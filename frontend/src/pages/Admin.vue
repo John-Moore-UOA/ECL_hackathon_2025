@@ -1,126 +1,92 @@
 <template>
-    <div id="app">
-      <h1>User Profile</h1>
-      
-      <!-- Create User Section -->
-      <div>
-        <h2>Create User</h2>
-        <form @submit.prevent="createUser">
-          <input v-model="userId" type="text" placeholder="User ID" required />
-          <input v-model="userName" type="text" placeholder="Name" required />
-          <input v-model="userEmail" type="email" placeholder="Email" required />
-          <button type="submit">Create User</button>
-        </form>
-      </div>
-  
-      <!-- Get User Interests Section -->
-      <div>
-        <h2>Get Interests</h2>
-        <button @click="getUserInterests">Get Interests</button>
+  <div>
+    <h1>User Interests</h1>
+    <div>
+      <input v-model="userId" placeholder="Enter User ID" />
+      <button @click="getInterests">Get Interests</button>
+      <div v-if="interests.length > 0">
+        <h3>Interests:</h3>
         <ul>
-          <li v-for="interest in interests" :key="interest.id">{{ interest.name }}</li>
-        </ul>
-      </div>
-  
-      <!-- Update User Interests Section -->
-      <div>
-        <h2>Update Interests</h2>
-        <form @submit.prevent="updateUserInterests">
-          <input v-model="interestName" type="text" placeholder="Interest Name" required />
-          <textarea v-model="interestDescription" placeholder="Interest Description" required></textarea>
-          <button type="submit">Update Interests</button>
-        </form>
-      </div>
-  
-      <!-- Similar Interests Section -->
-      <div>
-        <h2>Find Similar Interests</h2>
-        <button @click="findSimilarInterests">Find Similar Interests</button>
-        <ul>
-          <li v-for="interest in similarInterests" :key="interest.id">{{ interest.name }} (Similarity: {{ interest.similarity }})</li>
+          <li v-for="(interest, index) in interests" :key="index">{{ interest }}</li>
         </ul>
       </div>
     </div>
-  </template>
-  
-  <script>
-  import axios from 'axios';
-  
-  export default {
-    name: 'App',
-    data() {
-      return {
-        userId: '',
-        userName: '',
-        userEmail: '',
-        interests: [],
-        interestName: '',
-        interestDescription: '',
-        similarInterests: []
-      };
+
+    <div>
+      <h3>Update Interests</h3>
+      <input v-model="newInterests" placeholder="Enter new interests" />
+      <button @click="updateInterests">Update Interests</button>
+    </div>
+
+    <div>
+      <h3>Find Similar Interests</h3>
+      <input v-model="interestId" placeholder="Enter Interest ID" />
+      <button @click="findSimilarInterests">Find Similar Interests</button>
+      <div v-if="similarInterests.length > 0">
+        <h4>Similar Interests:</h4>
+        <ul>
+          <li v-for="(interest, index) in similarInterests" :key="index">{{ interest }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+export default {
+  data() {
+    return {
+      userId: '',
+      newInterests: '',
+      interestId: '',
+      interests: [],
+      similarInterests: []
+    };
+  },
+  methods: {
+    async getInterests() {
+      try {
+        const response = await axios.get(`${API_URL}/profile/interests/${this.userId}`);
+        this.interests = response.data;
+      } catch (error) {
+        console.log(error.response?.data?.error || 'Error fetching interests');
+      }
     },
-    methods: {
-      // Create a user
-      async createUser() {
-        try {
-          const response = await axios.post(`http://localhost:5000/api/profile/${this.userId}`, {
-            name: this.userName,
-            email: this.userEmail
-          });
-          alert(response.data.message);
-        } catch (error) {
-          console.error(error);
-          alert('Error creating user');
-        }
-      },
-      
-      // Get user interests
-      async getUserInterests() {
-        try {
-          const response = await axios.get(`http://localhost:5000/api/profile/interests/${this.userId}`);
-          this.interests = response.data;
-        } catch (error) {
-          console.error(error);
-          alert('Error fetching interests');
-        }
-      },
-  
-      // Update user interests
-      async updateUserInterests() {
-        const newInterest = {
-          id: new Date().getTime().toString(), // Unique ID for the interest
-          name: this.interestName,
-          description: this.interestDescription
-        };
-  
-        try {
-          const response = await axios.put(`http://localhost:5000/api/profile/interests/${this.userId}`, [newInterest]);
-          alert(response.data.message);
-        } catch (error) {
-          console.error(error);
-          alert('Error updating interests');
-        }
-      },
-  
-      // Find similar interests
-      async findSimilarInterests() {
-        const interestId = this.interests[0]?.id; // Assuming we have at least one interest for the demonstration
-        if (!interestId) return;
-  
-        try {
-          const response = await axios.get(`http://localhost:5000/api/interests/similar/${interestId}`, {
-            params: { limit: 5 }
-          });
-          this.similarInterests = response.data;
-        } catch (error) {
-          console.error(error);
-          alert('Error finding similar interests');
-        }
+    async updateInterests() {
+      try {
+        const updatedInterests = this.newInterests.split(',');
+        const response = await axios.put(
+          `${API_URL}/profile/interests/${this.userId}`,
+          { interests: updatedInterests }
+        );
+        console.log(response.data.message || 'Interests updated successfully');
+      } catch (error) {
+        console.log(error.response?.data?.error || 'Error updating interests');
+      }
+    },
+    async findSimilarInterests() {
+      try {
+        const response = await axios.get(`${API_URL}/interests/similar/${this.interestId}`, {
+          params: { limit: 5 }
+        });
+        this.similarInterests = response.data;
+      } catch (error) {
+        console.log(error.response?.data?.error || 'Error finding similar interests');
       }
     }
-  };
-  </script>
-  
-  <style scoped>
-  </style>
-  
+  }
+};
+</script>
+
+<style scoped>
+button {
+  margin: 10px;
+}
+input {
+  margin: 10px;
+}
+</style>

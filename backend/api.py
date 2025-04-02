@@ -134,13 +134,15 @@ class Neo4jConnection:
         with self.driver.session() as session:
             # First get the vector of the source interest
             result = session.run("""
-                MATCH (i:Interest {id: $interest_id})
-                RETURN i.vector AS vector
+                MATCH (i:Interest)
+                WHERE i.id = $interest_id OR i.id = toString($interest_id) OR i.id = toInteger($interest_id)
+                RETURN i.id AS id, i.name AS name, labels(i) AS labels
             """, interest_id=interest_id)
             
-            record = result.single()
-            if not record or not record.get("vector"):
-                return []
+            records = list(result)
+            print(f"Found {len(records)} nodes with id {interest_id} (or string/int conversion)")
+            for record in records:
+                print(f"- Node: {record}")
             
             # Then find similar interests using cosine similarity calculation in Neo4j
             result = session.run("""
@@ -155,6 +157,8 @@ class Neo4jConnection:
                 ORDER BY similarity DESC
                 LIMIT $limit
             """, interest_id=interest_id, limit=limit)
+
+            print(f'success: {result}')
             
             return [dict(record) for record in result]
 
