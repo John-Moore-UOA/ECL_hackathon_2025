@@ -47,11 +47,16 @@
   // Function to add a new interest
   const addInterest = () => {
   const trimmedInterest = newInterest.value.trim().toLowerCase();
-
+  
+  console.log('adding interest: ', trimmedInterest);
+  
   // Check if the interest already exists (case-insensitive)
   const exists = props.interests.some(
     (interest) => interest.name.toLowerCase() === trimmedInterest
   );
+
+  console.log('trimmed:', trimmedInterest)
+  console.log('!exists:', !exists)
 
     if (trimmedInterest && !exists) {
         const newItem = {
@@ -59,6 +64,8 @@
         name: newInterest.value.trim(),
         description: "Newly added interest"
         };
+        
+        console.log('Interests:', newItem)
 
         emit('updateInterests', [...props.interests, newItem]);
         newInterest.value = ''; // Clear input

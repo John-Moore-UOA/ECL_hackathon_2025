@@ -56,8 +56,8 @@ const defaultInterests = [
   { id: 1, name: 'Technology', description: 'Latest trends and gadgets in tech.' },
   { id: 2, name: 'Sports', description: 'Favorite teams and sports activities.' },
   { id: 3, name: 'Music', description: 'Genres and artists you love.' },
-  { id: 4, name: 'Travel', description: 'Places you want to visit and travel tips.' },
-  { id: 5, name: 'Books', description: 'Fiction, non-fiction, and reading recommendations.' }
+  { id: 4, name: 'Travel', description: 'Travel Tips' },
+  { id: 5, name: 'Books', description: 'Fiction, non-fiction' }
 ];
 
 const fetchUserInterests = async () => {
@@ -89,6 +89,8 @@ const updateUserInterests = async (newInterests) => {
   error.value = null;
   
   try {
+    console.log('adding new interest: ', newInterests);
+
     await axios.put(`${API_URL}/profile/interests/${USER_ID.value}`, newInterests);
     userInterests.value = newInterests;
     isNewUser.value = false;

@@ -9,7 +9,7 @@ import ProfilePage from './components/ProfilePage.vue';
 const isProfilePage = ref(false);
 const userId = ref('');
 
-const companyName = ref('LatteLink / MugMate / CoasterConnect');
+const companyName = ref('LatteLink'); //  MugMate, CoasterConnect
 const heroTitle = ref('Welcome to Our Landing Page');
 const heroDescription = ref('A powerful solution to help you achieve your goals. Sign up today and start your journey with us.');
 const footerDescription = ref('We revolutionize coffee breaks by turning them into seamless networking opportunities. Connect effortlessly over coffee with our smart coaster—reach out to learn more!');
