@@ -26,7 +26,7 @@ defineProps({
 <style>
 .feature {
   align-items: center;
-  background-color: #f0f0f0;
+  background-color: #fcf4dc;
   padding-bottom: 50px;
 }
 </style>

@@ -5,7 +5,7 @@
       <p class="hero-description">{{ description }}</p>
     </div>
     <div class="hero-images">
-      <img src="../assets/temp.jpg" alt="hero image" class="hero-image" />
+      <img src="../assets/logo.webp" alt="hero image" class="hero-image" />
     </div>
   </section>
 </template>
@@ -14,7 +14,7 @@
 export default {
   data() {
     return {
-      title: "Welcome to LatteLink",
+      title: "Welcome to Inclusive Coffee Coasters",
       description: "Our Coffee Bump feature helps connect you with people from different groups, encouraging casual coffee meetups that spark meaningful interactions and new connections."
     };
   }
@@ -27,11 +27,14 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 2rem;
-  background-color: #f0f0f0;
+  background-color: #fcf4dc;
 }
 
 .hero-content {
   flex: 1;
+  background-color: white;
+  border-radius: 10%;
+  padding: 50px;
 }
 
 .hero-title {

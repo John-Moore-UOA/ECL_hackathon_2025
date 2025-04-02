@@ -129,7 +129,7 @@ padding: 9px 22px;
   padding: 20px;
   border: 2px solid #ccc;
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: #fcf4dc;
 }
 
 .input-section {
