@@ -159,129 +159,173 @@ class Neo4jConnection:
     def find_similar_interests(self, interest_id, limit=10):
         print(f'find_similar_interests: {interest_id} - limit: {limit}')
 
+        final_results = {
+            "similar_interests": [],
+            "recommended_users": [],
+            "timestamp": None
+        }
+
         with self.driver.session() as session:
             # Get the source interest vector
+
+            print(f'Types: interest_id: {type(interest_id)}')
+
             source_query = """
                 MATCH (i:Interest)
-                WHERE i.id = $interest_id OR i.id = toString($interest_id) OR i.id = toInteger($interest_id)
+                WHERE i.id = $interest_id
                 RETURN i.id AS id, i.name AS name, i.vector AS vector
             """
-            source_result = session.run(source_query, interest_id=interest_id)
-            source_record = source_result.single()
-            if not source_record:
-                print("No source interest found")
-                return []
-            source_vector = source_record["vector"]
-            print(f"Source interest: {source_record}")
+            source_result = session.run(source_query, interest_id=int(interest_id))
 
-            # Pull a random sample of 100 interests with vectors, excluding the source interest
+            print(f'source_result: {source_result}')
+
+            source_record = source_result.single()
+            print(f'source_record: {source_record}')
+            
+
+            # surely I can just ignore this
+            # print(not source_record or "vector" not in source_record or source_record["vector"] is None)
+            # if not source_record or "vector" not in source_record or source_record["vector"] is None:
+            #     print(f"No source interest found or source interest has no vector for id: {interest_id}")
+            #     # Set timestamp even if nothing found
+            #     final_results["timestamp"] = datetime.datetime.now(datetime.UTC).isoformat() 
+            #     # Removed '+Z' as isoformat() on timezone-aware object includes offset
+            #     return final_results
+                
+            source_vector = source_record["vector"]
+            print(f"Source interest: {source_record['id']} - {source_record['name']}")
+
+            # Pull a random sample of interests with vectors, excluding the source interest
             sample_query = """
                 MATCH (other:Interest)
-                WHERE other.vector IS NOT NULL AND other.id <> $interest_id
+                // Ensure the comparison handles potential type differences if needed, like source query
+                WHERE other.vector IS NOT NULL AND toString(other.id) <> toString($interest_id) 
                 RETURN other.id AS id, other.name AS name, other.description AS description, other.vector AS vector
                 ORDER BY rand()
-                LIMIT 100
-            """
-            sample_result = session.run(sample_query, interest_id=interest_id)
+                LIMIT 100 
+            """ # Increased limit slightly for better candidate pool before filtering
+            sample_result = session.run(sample_query, interest_id=source_record["id"]) # Use the actual ID found
             candidates = list(sample_result)
-            print(f"Found {len(candidates)} candidate interests")
+            print(f"Found {len(candidates)} candidate interests for similarity check")
 
             # Compute cosine similarity using numpy
-            similarity_threshold = 0.5  # Optional: only keep candidates with similarity above this threshold
+            similarity_threshold = 0.5 # Adjust as needed
             similarities = []
             for candidate in candidates:
                 candidate_vector = candidate["vector"]
-                sim = self.cosine_similarity(source_vector, candidate_vector)
-                similarities.append((candidate, sim))
+                # Ensure candidate_vector is not None before calculating similarity
+                if candidate_vector is not None:
+                    sim = self.cosine_similarity(source_vector, candidate_vector)
+                    similarities.append((candidate, sim))
+                else:
+                    print(f"Warning: Candidate interest {candidate['id']} has NULL vector.")
             
             # Filter and sort candidates based on similarity
             filtered_candidates = [
                 (cand, sim) for (cand, sim) in similarities if sim > similarity_threshold
             ]
             sorted_candidates = sorted(filtered_candidates, key=lambda x: x[1], reverse=True)
-            top_candidates = sorted_candidates[:limit]
+            top_candidates = sorted_candidates[:limit] # Apply limit to similar *interests*
 
-            # Prepare the final result list
-            results = []
+            # Prepare the similar interests result list
+            similar_interests_results = []
             for candidate, sim in top_candidates:
-                results.append({
+                similar_interests_results.append({
                     "id": candidate["id"],
                     "name": candidate["name"],
-                    "description": candidate.get("description", ""),
+                    "description": candidate.get("description", ""), # Use .get for safety
                     "similarity": sim
                 })
             
-        # Get current dateTime
-        current_time = datetime.datetime.utcnow().isoformat() + 'Z'
-        # Calculate timestamp 1 hour ago
-        one_hour_ago = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).isoformat() + 'Z'
-        
-        # Get users with similar interests who haven't been updated in the last hour
-        similar_interest_ids = [item["id"] for item in results]
-        
-        users_query = """
-        MATCH (u:User)-[r:INTERESTED_IN]->(i:Interest)
-        WHERE i.id IN $interest_ids
-        AND (NOT exists(u.lastUpdated) OR u.lastUpdated < $one_hour_ago)
-        WITH u, i, r
-        ORDER BY u.id, i.id
-        RETURN u.id AS user_id, u.name AS user_name, 
-               collect(distinct {interest_id: i.id, interest_name: i.name}) AS interests
-        LIMIT 100
-        """
-        
-        users_result = session.run(users_query, 
-                                  interest_ids=similar_interest_ids,
-                                  one_hour_ago=one_hour_ago)
-        users = list(users_result)
-        
-        # Calculate user scores based on weighted interests
-        user_scores = []
-        interest_weights = {item["id"]: item["similarity"] for item in results}
-        selected_user_ids = []
-        
-        for user in users:
-            score = 0
-            for interest in user["interests"]:
-                interest_id = interest["interest_id"]
-                if interest_id in interest_weights:
-                    score += interest_weights[interest_id]
+            final_results["similar_interests"] = similar_interests_results
             
-            user_scores.append({
-                "user_id": user["user_id"],
-                "user_name": user["user_name"],
-                "interests": user["interests"],
-                "score": score
-            })
-            selected_user_ids.append(user["user_id"])
-        
-        # Sort users by score and return top results
-        sorted_users = sorted(user_scores, key=lambda x: x["score"], reverse=True)
-        top_users = sorted_users[:limit]
-        top_user_ids = [user["user_id"] for user in top_users]
-        
-        # Update lastUpdated timestamp for selected users
-        if top_user_ids:
-            update_query = """
-            MATCH (u:User)
-            WHERE u.id IN $user_ids
-            SET u.lastUpdated = $current_time
-            RETURN count(u) as updated_count
+            # --- Datetime calculation using the new method ---
+            current_dt = datetime.datetime.now(datetime.UTC)
+            one_hour_ago_dt = current_dt - datetime.timedelta(hours=1)
+            
+            # Format for Neo4j (ISO 8601 format usually works well)
+            current_time_iso = current_dt.isoformat() 
+            one_hour_ago_iso = one_hour_ago_dt.isoformat()
+            
+            # Update the timestamp in the final results
+            final_results["timestamp"] = current_time_iso
+
+            # --- Find users ---
+            similar_interest_ids = [item["id"] for item in similar_interests_results]
+            
+            # Proceed only if we found similar interests
+            if not similar_interest_ids:
+                print("No sufficiently similar interests found to recommend users.")
+                return final_results # Return interests found (if any) and timestamp
+
+            users_query = """
+            MATCH (u:User)-[r:INTERESTED_IN]->(i:Interest)
+            WHERE i.id IN $interest_ids
+            // Use standard datetime comparison if u.lastUpdated is stored as DateTime
+            AND (u.lastUpdated IS NULL OR u.lastUpdated < datetime($one_hour_ago_iso)) 
+            WITH u, i, r
+            ORDER BY u.id, i.id // Ordering here might not be necessary if only collecting interests per user
+            RETURN u.id AS user_id, u.name AS user_name, 
+                collect(distinct {interest_id: i.id, interest_name: i.name}) AS interests
+            LIMIT 100 // Limit the number of users fetched initially
             """
             
-            update_result = session.run(update_query, 
-                                      user_ids=top_user_ids,
-                                      current_time=current_time)
-            update_count = update_result.single()["updated_count"]
-            print(f"Updated lastUpdated timestamp for {update_count} users")
-        
-        # Add users to results
-        final_results = {
-            "similar_interests": results,
-            "recommended_users": top_users,
-            "timestamp": current_time
-        }
-        
+            users_result = session.run(users_query, 
+                                    interest_ids=similar_interest_ids,
+                                    one_hour_ago_iso=one_hour_ago_iso)
+            users = list(users_result)
+            print(f"Found {len(users)} potential users with relevant interests.")
+            
+            # Calculate user scores based on weighted interests
+            user_scores = []
+            # Create weight map from the *actual* similar interests found and limited
+            interest_weights = {item["id"]: item["similarity"] for item in similar_interests_results} 
+            
+            for user in users:
+                score = 0.0 # Use float for score
+                matched_user_interests = [] # Store interests that contributed to score
+                for interest in user["interests"]:
+                    interest_id = interest["interest_id"]
+                    if interest_id in interest_weights:
+                        score += interest_weights[interest_id]
+                        matched_user_interests.append(interest) # Add this interest
+                
+                # Only include users who actually matched one of the target interests
+                if score > 0: 
+                    user_scores.append({
+                        "user_id": user["user_id"],
+                        "user_name": user["user_name"],
+                        "interests": matched_user_interests, # Show only relevant interests? Or all? user["interests"]
+                        "score": score
+                    })
+            
+            # Sort users by score and return top results (apply limit to users here)
+            sorted_users = sorted(user_scores, key=lambda x: x["score"], reverse=True)
+            top_users = sorted_users[:limit] # Apply limit to *users*
+            final_results["recommended_users"] = top_users
+
+            # --- Update timestamps for recommended users ---
+            top_user_ids = [user["user_id"] for user in top_users]
+            
+            if top_user_ids:
+                # Ensure you are storing datetime objects in Neo4j for this comparison
+                update_query = """ 
+                MATCH (u:User)
+                WHERE u.id IN $user_ids
+                SET u.lastUpdated = datetime($current_time_iso) 
+                RETURN count(u) as updated_count
+                """
+                
+                try:
+                    update_result = session.run(update_query, 
+                                            user_ids=top_user_ids,
+                                            current_time_iso=current_time_iso)
+                    update_count = update_result.single()["updated_count"]
+                    print(f"Updated lastUpdated timestamp for {update_count} users")
+                except Exception as e:
+                    print(f"Error updating user timestamps: {e}")
+                    # Decide if you want to fail the whole operation or just log the error
+
         return final_results
         
 def text_to_vector(text):
