@@ -2,3 +2,33 @@
 
 - [Empathic Computing Website](https://empathiccomputing.org/)
 - [Empathic Computing Lab](https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/empathic-computing-laboratory.html)
+
+
+## Backend
+
+### Python schedule_person_picker
+- Goal: Find users with similar interests
+
+#### Run through:
+- Select a user at random
+- Select random interest
+- Select users with direct edge to interest
+- If not enough users are interested in the same thing, resort to a global similarity search using Word2Vec similarity
+![image](https://github.com/user-attachments/assets/4ab0e019-f7bd-49a8-ba16-c5d4cecd591d)
+![image](https://github.com/user-attachments/assets/e40e041c-f777-427d-a0e5-6efe10953264)
+![image](https://github.com/user-attachments/assets/08e5f11f-5fa5-43b7-b0d3-39967271ebb5)
+![image](https://github.com/user-attachments/assets/d75f7103-d435-4b17-b5c3-49c051ca193c)
+![image](https://github.com/user-attachments/assets/66bab61b-a2c1-4ae9-b4ef-f617615b84d2)
+
+# output
+```Schduler started. Running every 5 minutes...
+Fetching users with similar interest to user: 5
+Users that have similar interests: ['1']````
+
+
+
+
+
+
+
+
