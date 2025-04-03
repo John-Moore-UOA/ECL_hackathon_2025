@@ -9,6 +9,19 @@
 - John Moore
 - Tamil Selvan Gunasekaran
 - Carl Tang
+  
+## Challenge
+Solve a problem that ABI (Auckland Uni Bioengineering Institute) faces.
+
+## Our Problem
+New team members / researchers feel disconnected from the rest of the ABI. 
+
+## Our Solution
+- A coffee coaster that activates a network wide alert when one user takes their cup to the coffee room.
+- The backend system will send messages to the different coasters, based on the user's similarities of hobbies etc.
+- Users can modify thier hobbies / activities
+- Algorithm will select the 5 closest users based on a random interest selected by the user
+- Break time between when it calls to any single coaster of one hour
 
 ## Backend
 
