@@ -3,6 +3,12 @@
 - [Empathic Computing Website](https://empathiccomputing.org/)
 - [Empathic Computing Lab](https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/empathic-computing-laboratory.html)
 
+![image](https://github.com/user-attachments/assets/eca5ebcb-f372-482a-be22-b1bff889e8d7)
+
+## Team
+- John Moore
+- Tamil Selvan Gunasekaran
+- Carl Tang
 
 ## Backend
 
@@ -27,6 +33,10 @@ Fetching users with similar interest to user: 5
 Users that have similar interests: ['1']
 ```
 
+## Frontend
+
+![image](https://github.com/user-attachments/assets/d439f9ec-1884-4ead-b074-bd4f10a5d050)
+![image](https://github.com/user-attachments/assets/3c2f35b4-de88-460d-bc38-560d78cef291)
 
 
 
